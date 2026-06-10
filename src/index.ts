@@ -72,11 +72,11 @@ async function runResearch(env: Env, body: ResearchRequest): Promise<Response> {
 
 	const sourceBlock = sources
 		.map((source, index) =>
-			"[" + (index + 1) + "] " + source.title + "\nURL: " + source.url + "\nEXCERPT:\n" + source.excerpt,
+			"[" + (index + 1) + "] " + source.title + "\nURL: " + source.url + "\nEXCERPT:\n" + sanitizeSourceExcerpt(source.excerpt),
 		)
 		.join("\n\n---\n\n");
 
-	const prompt = "Research question: " + (query || "Summarize the supplied sources") + "\n\nUse only the source excerpts below. Give a concise answer, key findings, and cite sources inline with [1], [2], etc. If the sources are insufficient, say what is missing.\n\n" + sourceBlock;
+	const prompt = "Research question: " + (query || "Summarize the supplied sources") + "\n\nUse only the source excerpts below. Give a concise answer and key findings. Cite only the source labels I provide, such as [1] or [2]. Do not invent citation numbers. If the sources are insufficient, say what is missing.\n\n" + sourceBlock;
 	const aiResult = (await env.AI.run(MODEL, {
 		messages: [
 			{
@@ -160,6 +160,10 @@ function htmlToText(html: string): string {
 	)
 		.replace(/\s+/g, " ")
 		.trim();
+}
+
+function sanitizeSourceExcerpt(value: string): string {
+	return value.replace(/\\[\\d+\\]/g, "").replace(/\\s+/g, " ").trim();
 }
 
 function stripTags(value: string): string {
