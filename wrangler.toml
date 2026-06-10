@@ -7,9 +7,6 @@ compatibility_flags = ["nodejs_compat"]
 pattern = "mcp-research-agent-232347.proagentstore.online/*"
 zone_name = "proagentstore.online"
 
-[ai]
-binding = "AI"
-
 [[durable_objects.bindings]]
 name = "AGENT"
 class_name = "AgentDO"
