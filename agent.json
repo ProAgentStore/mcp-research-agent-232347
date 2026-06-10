@@ -1,0 +1,15 @@
+{
+  "id": "mcp-research-agent-232347",
+  "name": "MCP Research Agent",
+  "description": "Researches a topic from public web sources, summarizes findings, and returns citations.",
+  "storeType": "agent",
+  "category": "research",
+  "model": "@cf/meta/llama-3.2-3b-instruct",
+  "template": "worker",
+  "serverConfig": {
+    "durableObject": true,
+    "routes": [
+      "mcp-research-agent-232347.proagentstore.online/*"
+    ]
+  }
+}
