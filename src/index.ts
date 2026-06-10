@@ -39,13 +39,13 @@ app.get("/", (c) =>
 app.get("/health", (c) => c.json({ ok: true, agent: "mcp-research-agent-232347" }));
 
 app.post("/chat", async (c) => {
-	const body = await c.req.json<ResearchRequest>().catch(() => ({}));
+	const body = (await c.req.json<ResearchRequest>().catch(() => ({}))) as ResearchRequest;
 	const query = body.message || body.query;
 	return runResearch(c.env, { query, urls: body.urls });
 });
 
 app.post("/research", async (c) => {
-	const body = await c.req.json<ResearchRequest>().catch(() => ({}));
+	const body = (await c.req.json<ResearchRequest>().catch(() => ({}))) as ResearchRequest;
 	return runResearch(c.env, body);
 });
 
