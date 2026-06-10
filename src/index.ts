@@ -1,9 +1,7 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 
-interface Env {
-	AI: Ai;
-}
+interface Env {}
 
 type ResearchRequest = {
 	query?: string;
@@ -41,18 +39,29 @@ app.get("/health", (c) => c.json({ ok: true, agent: "mcp-research-agent-232347" 
 app.post("/chat", async (c) => {
 	const body = (await c.req.json<ResearchRequest>().catch(() => ({}))) as ResearchRequest;
 	const query = body.message || body.query;
-	return runResearch(c.env, { query, urls: body.urls });
+	return runResearch(c.req.raw, { query, urls: body.urls });
 });
 
 app.post("/research", async (c) => {
 	const body = (await c.req.json<ResearchRequest>().catch(() => ({}))) as ResearchRequest;
-	return runResearch(c.env, body);
+	return runResearch(c.req.raw, body);
 });
 
-async function runResearch(env: Env, body: ResearchRequest): Promise<Response> {
+async function runResearch(request: Request, body: ResearchRequest): Promise<Response> {
 	const query = (body.query || body.message || "").trim();
 	if (!query && (!body.urls || body.urls.length === 0)) {
 		return json({ error: "query or urls is required" }, 400);
+	}
+	const credentials = callerAiCredentials(request);
+	if (!credentials) {
+		return json(
+			{
+				error: "caller_ai_credentials_required",
+				message:
+					"Pass your own Cloudflare Workers AI credentials with X-CF-Account-ID and X-CF-AI-Token. This agent will not spend the ProAgentStore Workers AI account.",
+			},
+			402,
+		);
 	}
 
 	const urls = normalizeUrls(body.urls?.length ? body.urls : await discoverWikipedia(query));
@@ -77,7 +86,7 @@ async function runResearch(env: Env, body: ResearchRequest): Promise<Response> {
 		.join("\n\n---\n\n");
 
 	const prompt = "Research question: " + (query || "Summarize the supplied sources") + "\n\nUse only the source excerpts below. Give a concise answer and key findings. Cite only the source labels I provide, such as [1] or [2]. Do not invent citation numbers. If the sources are insufficient, say what is missing.\n\n" + sourceBlock;
-	const aiResult = (await env.AI.run(MODEL, {
+	const aiResult = (await runCallerWorkersAi(credentials, {
 		messages: [
 			{
 				role: "system",
@@ -97,6 +106,36 @@ async function runResearch(env: Env, body: ResearchRequest): Promise<Response> {
 			excerpt: source.excerpt.slice(0, 500),
 		})),
 	});
+}
+
+function callerAiCredentials(request: Request): { accountId: string; token: string } | null {
+	const accountId = request.headers.get("X-CF-Account-ID")?.trim();
+	const token = request.headers.get("X-CF-AI-Token")?.trim();
+	if (!accountId || !token) return null;
+	return { accountId, token };
+}
+
+async function runCallerWorkersAi(credentials: { accountId: string; token: string }, body: unknown): Promise<unknown> {
+	const encodedModel = MODEL.split("/").map(encodeURIComponent).join("/");
+	const res = await fetch(
+		"https://api.cloudflare.com/client/v4/accounts/" +
+			encodeURIComponent(credentials.accountId) +
+			"/ai/run/" +
+			encodedModel,
+		{
+			method: "POST",
+			headers: {
+				Authorization: "Bearer " + credentials.token,
+				"Content-Type": "application/json",
+			},
+			body: JSON.stringify(body),
+		},
+	);
+	const data = await res.json().catch(() => ({}));
+	if (!res.ok) {
+		return { error: "caller_workers_ai_failed", status: res.status, details: data };
+	}
+	return data;
 }
 
 async function discoverWikipedia(query: string): Promise<string[]> {
