@@ -90,7 +90,7 @@ async function runResearch(env: Env, body: ResearchRequest): Promise<Response> {
 
 	return json({
 		query,
-		answer: aiResult.response || aiResult.choices?.[0]?.message?.content || "No answer generated.",
+		answer: normalizeCitations(aiResult.response || aiResult.choices?.[0]?.message?.content || "No answer generated.", sources.length),
 		sources: sources.map((source) => ({
 			title: source.title,
 			url: source.url,
