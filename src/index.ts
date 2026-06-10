@@ -166,6 +166,14 @@ function sanitizeSourceExcerpt(value: string): string {
 	return value.replace(/\\[\\d+\\]/g, "").replace(/\\s+/g, " ").trim();
 }
 
+function normalizeCitations(answer: string, sourceCount: number): string {
+	return answer.replace(/\[(\d+)\]/g, (_match, raw) => {
+		const index = Number(raw);
+		if (index >= 1 && index <= sourceCount) return "[" + index + "]";
+		return sourceCount > 0 ? "[1]" : "";
+	});
+}
+
 function stripTags(value: string): string {
 	return value.replace(/<[^>]+>/g, " ");
 }
